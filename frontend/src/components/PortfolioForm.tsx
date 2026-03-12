@@ -5,13 +5,9 @@ import type { HoldingInput } from '../../../shared/index';
 const MAX_HOLDINGS = 15;
 const TODAY = new Date().toISOString().split('T')[0];
 
-function generateId(): string {
-  return `holding-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
 function emptyHolding(): HoldingInput {
   return {
-    id: generateId(),
+    id: crypto.randomUUID(),
     name: '',
     amountInvested: 0,
     currentValue: 0,
@@ -43,8 +39,8 @@ function validateHolding(h: HoldingInput): HoldingErrors {
 
   if (!h.purchaseDate) {
     errors.purchaseDate = 'Date purchased is required';
-  } else if (h.purchaseDate >= TODAY) {
-    errors.purchaseDate = 'Date must be in the past';
+  } else if (h.purchaseDate > TODAY) {
+    errors.purchaseDate = 'Date must not be in the future';
   }
 
   return errors;
@@ -243,6 +239,7 @@ function HoldingCard({
           type="date"
           value={holding.purchaseDate}
           onChange={(e) => onChange(holding.id, { purchaseDate: e.target.value })}
+          min="2012-01-23"
           max={TODAY}
           disabled={disabled}
           className={errors.purchaseDate ? 'error' : ''}

@@ -1,9 +1,11 @@
 {
-  "buildCommand": "npm install && npm run build --workspace=frontend",
+  "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
+  "installCommand": "npm install",
   "functions": {
     "backend/api/**/*.ts": {
-      "runtime": "@vercel/node@3.2.22"
+      "runtime": "@vercel/node@3.2.22",
+      "includeFiles": "backend/src/**,shared/**"
     }
   },
   "rewrites": [

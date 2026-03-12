@@ -340,7 +340,7 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f7fafc' }} />
             <Bar dataKey="return" name="Return %" radius={[4, 4, 0, 0]} maxBarSize={80}>
-              {chartData.map((entry, idx) => (
+              {chartData.map((_entry, idx) => (
                 <Cell
                   key={`cell-${idx}`}
                   fill={

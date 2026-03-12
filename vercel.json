@@ -1,14 +1,14 @@
 {
-  "buildCommand": "cd frontend && npm run build",
+  "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install",
   "functions": {
-    "backend/api/**/*.ts": {
+    "api/**/*.ts": {
       "runtime": "@vercel/node@3.2.22",
       "includeFiles": "backend/src/**,shared/**"
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/backend/api/$1" }
+    { "source": "/api/(.*)", "destination": "/api/$1" }
   ]
 }

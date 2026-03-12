@@ -88,5 +88,6 @@ export interface VwrlPricesResponse {
 
 export interface ApiError {
   code: string;
-  message: string;
+  error: string;
+  details?: string;
 }

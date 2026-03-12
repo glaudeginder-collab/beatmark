@@ -65,6 +65,14 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ): Promise<void> {
+  const origin = req.headers.origin as string | undefined;
+  const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000').split(',');
+  if (origin && allowedOrigins.includes(origin)) {
+    reply.header('Access-Control-Allow-Origin', origin);
+  }
+  reply.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  reply.header('Access-Control-Allow-Headers', 'Content-Type');
+
   // Only allow GET
   if (req.method !== 'GET') {
     sendError(res, 405, 'METHOD_NOT_ALLOWED', 'Only GET requests are supported.');

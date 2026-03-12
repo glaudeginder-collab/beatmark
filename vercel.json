@@ -1,7 +1,12 @@
 {
   "buildCommand": "npm run build --workspace=frontend",
   "outputDirectory": "frontend/dist",
+  "functions": {
+    "backend/api/**/*.ts": {
+      "runtime": "@vercel/node"
+    }
+  },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+    { "source": "/api/(.*)", "destination": "/backend/api/$1" }
   ]
 }

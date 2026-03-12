@@ -2,6 +2,15 @@ import yahooFinance from 'yahoo-finance2';
 import type { PricePoint } from '../../../shared/index';
 import type { PriceProvider } from './PriceProvider';
 
+// In yahoo-finance2 v2.3.x, FailedYahooValidationError is thrown when Yahoo's API
+// returns a response that doesn't match the library's schema (common with UK-listed
+// ETFs like VWRL.L). Crucially, the error object carries the raw `result` — so we
+// can catch it and use whatever data Yahoo actually returned.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const { FailedYahooValidationError } = (yahooFinance as any).errors as {
+  FailedYahooValidationError: new (message: string, opts: { result: unknown; errors: unknown }) => Error & { result: unknown };
+};
+
 /**
  * Shape of a single row from yahoo-finance2's _chart() quotes array.
  * We define this locally because the package doesn't expose subpath types.
@@ -46,16 +55,69 @@ export class YahooFinanceProvider implements PriceProvider {
     to: Date
   ): Promise<PricePoint[]> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: any = await (yahooFinance as any)._chart(ticker, {
-      period1: from.toISOString().split('T')[0],
-      period2: to.toISOString().split('T')[0],
-      interval: '1d',
-    });
+    let result: any;
+    try {
+      result = await (yahooFinance as any)._chart(ticker, {
+        period1: from.toISOString().split('T')[0],
+        period2: to.toISOString().split('T')[0],
+        interval: '1d',
+      });
+    } catch (err) {
+      // yahoo-finance2 v2.3.x throws FailedYahooValidationError when Yahoo's response
+      // doesn't match the library's expected schema — this happens intermittently with
+      // UK-listed ETFs like VWRL.L. The error carries the raw `result` data, so we
+      // can safely use it rather than treating this as a hard failure.
+      if (err instanceof FailedYahooValidationError) {
+        console.warn(
+          `[${this.providerName}] Schema validation warning for ${ticker} (using raw result anyway):`,
+          (err as Error).message
+        );
+        result = (err as Error & { result: unknown }).result;
+      } else {
+        throw new Error(
+          `[${this.providerName}] _chart() call failed for ${ticker}: ${(err as Error).message}`
+        );
+      }
+    }
 
-    const quotes: ChartRow[] = result?.quotes ?? [];
+    // yahoo-finance2 normally transforms the raw response into a `quotes` array.
+    // When FailedYahooValidationError is caught, the result may be partially
+    // transformed — either with `quotes` populated, or in the raw form:
+    //   { meta, timestamp: [unix_ts, ...], indicators: { quote: [...], adjclose: [...] } }
+    // We handle both cases below.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let quotes: ChartRow[];
+
+    if (Array.isArray(result?.quotes) && result.quotes.length > 0) {
+      // Normal path: library successfully transformed the response
+      quotes = (result.quotes as ChartRow[]).filter(
+        (r): r is ChartRow =>
+          r != null && r.date != null && (r.adjclose != null || r.close != null)
+      );
+    } else if (Array.isArray(result?.timestamp) && result.timestamp.length > 0) {
+      // Raw path: validation failed before transform; reconstruct from raw arrays.
+      // Yahoo returns null entries for non-trading days mid-series — skip those.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const timestamps: number[] = result.timestamp;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rawClose: (number | null)[] = result?.indicators?.quote?.[0]?.close ?? [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rawAdjclose: (number | null)[] = result?.indicators?.adjclose?.[0]?.adjclose ?? [];
+
+      quotes = timestamps
+        .map((ts, i) => ({
+          date: new Date(ts * 1000),
+          close: rawClose[i] ?? undefined,
+          adjclose: rawAdjclose[i] ?? undefined,
+        }))
+        .filter(
+          (r): r is ChartRow => r.adjclose != null || r.close != null
+        );
+    } else {
+      quotes = [];
+    }
 
     return quotes
-      .filter(r => r.date != null && (r.adjclose != null || r.close != null))
       .map(r => ({
         date: new Date(r.date).toISOString().split('T')[0],
         // Prefer adjclose (dividend-adjusted total return); fall back to close only if null

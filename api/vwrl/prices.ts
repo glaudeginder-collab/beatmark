@@ -68,10 +68,10 @@ export default async function handler(
   const origin = req.headers.origin as string | undefined;
   const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000').split(',');
   if (origin && allowedOrigins.includes(origin)) {
-    reply.header('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Origin', origin);
   }
-  reply.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  reply.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   // Only allow GET
   if (req.method !== 'GET') {

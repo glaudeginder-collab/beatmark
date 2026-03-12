@@ -4,7 +4,7 @@
   "installCommand": "npm install",
   "functions": {
     "api/**/*.ts": {
-      "runtime": "@vercel/node@3.2.22",
+      "runtime": "@vercel/node@5",
       "includeFiles": "backend/src/**,shared/**"
     }
   },

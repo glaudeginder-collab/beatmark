@@ -1,0 +1,14 @@
+{
+  "$comment": "Tsconfig for Vercel serverless functions in api/. Uses TS4-compatible settings (moduleResolution: node) so it works with any @vercel/node version. The root tsconfig.json uses moduleResolution: bundler (TS5+) which older runtimes reject.",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "../dist/api"
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["./**/*.test.ts", "./**/__tests__/**"]
+}

@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@beatmark/shared": ["../shared/index.ts"]
+    }
+  },
+  "include": ["src/**/*", "api/**/*", "../shared/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

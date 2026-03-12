@@ -72,14 +72,28 @@ function getMockResults(holdings: HoldingInput[]): CalculateResponse {
 export default function App() {
   const [results, setResults] = useState<CalculateResponse | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleCalculate = async (holdings: HoldingInput[]) => {
+  const handleCalculate = async (formData: HoldingInput[]) => {
     setIsCalculating(true);
-    // Simulate API latency
-    await new Promise((r) => setTimeout(r, 800));
-    const mockResults = getMockResults(holdings);
-    setResults(mockResults);
-    setIsCalculating(false);
+    setError(null);
+    try {
+      const response = await fetch('/api/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ holdings: formData, currency: 'GBP' }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'API error');
+      }
+      const data: CalculateResponse = await response.json();
+      setResults(data);
+    } catch (e) {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setIsCalculating(false);
+    }
   };
 
   return (
@@ -101,6 +115,22 @@ export default function App() {
           Is your portfolio beating the market? Find out in 60 seconds.
         </p>
       </header>
+
+      {/* ── API error banner ── */}
+      {error && (
+        <div style={{
+          background: '#fff5f5',
+          borderBottom: '1px solid #feb2b2',
+          padding: '10px 32px',
+          fontSize: '13px',
+          color: '#9b2c2c',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          <span>⚠️</span> {error}
+        </div>
+      )}
 
       {/* ── Main two-panel layout ── */}
       <main style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>

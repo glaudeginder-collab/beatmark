@@ -29,7 +29,6 @@ interface HeadlineCardProps {
   title: string;
   returnPct: number;
   subLine: string;
-  highlight?: boolean;
   neutral?: boolean;
 }
 
@@ -157,12 +156,13 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 // ─── Holdings Table ───────────────────────────────────────────────────────────
 interface HoldingsTableProps {
   holdings: CalculateResponse['holdings'];
+  portfolio: CalculateResponse['portfolio'];
 }
 
-function HoldingsTable({ holdings }: HoldingsTableProps) {
-  const totalInvested = holdings.reduce((s, h) => s + h.amountInvested, 0);
-  const totalCurrent = holdings.reduce((s, h) => s + h.currentValue, 0);
-  const totalReturn = ((totalCurrent - totalInvested) / totalInvested) * 100;
+function HoldingsTable({ holdings, portfolio }: HoldingsTableProps) {
+  const totalInvested = portfolio.totalInvested;
+  const totalCurrent = portfolio.totalCurrentValue;
+  const totalReturn = portfolio.totalReturn;
 
   const thStyle: React.CSSProperties = {
     textAlign: 'left',
@@ -260,7 +260,7 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
     { name: 'VWRL', return: benchmark.totalReturn },
   ];
 
-  const dataAsOf = new Date(results.dataAsOf).toLocaleDateString('en-GB', {
+  const dataAsOf = new Date(results.dataAsOf + 'T00:00:00Z').toLocaleDateString('en-GB', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
 
@@ -356,7 +356,7 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
       </div>
 
       {/* Holdings breakdown */}
-      <HoldingsTable holdings={results.holdings} />
+      <HoldingsTable holdings={results.holdings} portfolio={results.portfolio} />
 
       {/* Warnings */}
       {results.warnings.length > 0 && (

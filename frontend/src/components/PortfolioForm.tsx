@@ -5,13 +5,9 @@ import type { HoldingInput } from '../../../shared/index';
 const MAX_HOLDINGS = 15;
 const TODAY = new Date().toISOString().split('T')[0];
 
-function generateId(): string {
-  return `holding-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
 function emptyHolding(): HoldingInput {
   return {
-    id: generateId(),
+    id: crypto.randomUUID(),
     name: '',
     amountInvested: 0,
     currentValue: 0,
@@ -41,10 +37,13 @@ function validateHolding(h: HoldingInput): HoldingErrors {
     // Allow £0 current value (total loss scenario) but warn via empty-ish treatment
   }
 
+  const VWRL_LISTING_DATE = '2012-01-23';
   if (!h.purchaseDate) {
     errors.purchaseDate = 'Date purchased is required';
-  } else if (h.purchaseDate >= TODAY) {
-    errors.purchaseDate = 'Date must be in the past';
+  } else if (h.purchaseDate > TODAY) {
+    errors.purchaseDate = 'Date cannot be in the future';
+  } else if (h.purchaseDate < VWRL_LISTING_DATE) {
+    errors.purchaseDate = `Date cannot be before ${VWRL_LISTING_DATE} (VWRL listing date)`;
   }
 
   return errors;

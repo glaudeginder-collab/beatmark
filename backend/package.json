@@ -1,0 +1,8 @@
+{
+  "name": "@beatmark/backend",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "ts-node-dev api/index.ts",
+    "build": "tsc"
+  }
+}

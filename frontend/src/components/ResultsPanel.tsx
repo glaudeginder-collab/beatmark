@@ -2,6 +2,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import type { CalculateResponse } from '../../../shared/index';
+import Disclaimer from './Disclaimer';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtGbp(n: number): string {
@@ -375,6 +376,12 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
           ))}
         </div>
       )}
+
+      {/* Results-page legal disclaimer */}
+      <Disclaimer variant="results" />
+
+      {/* Data accuracy notice */}
+      <Disclaimer variant="data" />
     </div>
   );
 }

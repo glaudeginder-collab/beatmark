@@ -2,6 +2,7 @@ import { useState } from 'react';
 import PortfolioForm from './components/PortfolioForm';
 import EmptyState from './components/EmptyState';
 import ResultsPanel from './components/ResultsPanel';
+import Disclaimer from './components/Disclaimer';
 import type { HoldingInput, CalculateResponse } from '../../shared/index';
 
 export default function App() {
@@ -106,16 +107,7 @@ export default function App() {
         padding: '12px 32px',
         flexShrink: 0,
       }}>
-        <p style={{
-          color: 'var(--color-text-muted)',
-          fontSize: '0.75rem',
-          textAlign: 'center',
-          lineHeight: 1.5,
-        }}>
-          This tool is for informational purposes only and does not constitute financial advice.
-          Data may be delayed or inaccurate. VWRL benchmark assumes dividend reinvestment.
-          Past performance is not a reliable indicator of future results.
-        </p>
+        <Disclaimer variant="footer" />
       </footer>
     </div>
   );

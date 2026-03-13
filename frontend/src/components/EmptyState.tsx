@@ -9,49 +9,71 @@ export default function EmptyState({ isCalculating }: EmptyStateProps) {
 
   return (
     <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
+      display:        'flex',
+      flexDirection:  'column',
+      alignItems:     'center',
       justifyContent: 'center',
-      height: '100%',
-      minHeight: '400px',
-      padding: '40px',
-      textAlign: 'center',
+      height:         '100%',
+      minHeight:      '440px',
+      padding:        'var(--sp-10)',
+      textAlign:      'center',
+      userSelect:     'none',
     }}>
-      <ChartIcon />
+      {/* Illustration */}
+      <ChartIllustration />
+
+      {/* Heading */}
       <h3 style={{
-        marginTop: '20px',
-        marginBottom: '8px',
-        color: 'var(--color-text-secondary)',
-        fontWeight: 600,
-        fontSize: '1.05rem',
+        marginTop:   'var(--sp-6)',
+        marginBottom: 'var(--sp-2)',
+        fontSize:    '1.0625rem',
+        fontWeight:  700,
+        color:       'var(--color-text-primary)',
+        letterSpacing: '-0.02em',
       }}>
-        Enter your portfolio on the left
+        Ready to compare your portfolio?
       </h3>
+
+      {/* Body */}
       <p style={{
-        color: 'var(--color-text-muted)',
-        fontSize: '0.875rem',
-        maxWidth: '280px',
-        lineHeight: 1.6,
+        color:     'var(--color-text-secondary)',
+        fontSize:  '0.875rem',
+        maxWidth:  '300px',
+        lineHeight: 1.65,
+        marginBottom: 'var(--sp-7)',
       }}>
-        Add your holdings and hit <strong style={{ color: 'var(--color-text-secondary)' }}>Calculate</strong> to
-        see how you compare to VWRL.
+        Enter your holdings on the left and hit{' '}
+        <strong style={{
+          color:       'var(--color-brand)',
+          fontWeight:  600,
+        }}>
+          Calculate
+        </strong>
+        {' '}to see how you stack up against VWRL.
       </p>
+
+      {/* Preview chips — hint at what they'll see */}
       <div style={{
-        marginTop: '28px',
-        display: 'flex',
-        gap: '12px',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
+        display:         'flex',
+        flexWrap:        'wrap',
+        gap:             'var(--sp-2)',
+        justifyContent:  'center',
+        maxWidth:        '340px',
       }}>
-        {['Your return %', 'VWRL benchmark', 'Difference in £'].map((label) => (
+        {[
+          { label: 'Your return %',       color: 'var(--color-beating)',  bg: 'var(--color-beating-bg)',  border: 'var(--color-beating-border)' },
+          { label: 'VWRL benchmark',       color: 'var(--color-vwrl)',     bg: 'var(--color-vwrl-bg)',     border: 'var(--color-vwrl-border)' },
+          { label: '£ difference',          color: 'var(--color-trailing)', bg: 'var(--color-trailing-bg)', border: 'var(--color-trailing-border)' },
+          { label: 'Holdings breakdown',   color: 'var(--color-text-secondary)', bg: 'var(--color-surface)', border: 'var(--color-border)' },
+        ].map(({ label, color, bg, border }) => (
           <span key={label} style={{
-            background: '#fff',
-            border: '1px solid var(--color-border)',
+            background:   bg,
+            border:       `1px solid ${border}`,
             borderRadius: '20px',
-            padding: '5px 14px',
-            fontSize: '12px',
-            color: 'var(--color-text-muted)',
+            padding:      '5px 14px',
+            fontSize:     '0.75rem',
+            fontWeight:   500,
+            color,
           }}>
             {label}
           </span>
@@ -64,32 +86,41 @@ export default function EmptyState({ isCalculating }: EmptyStateProps) {
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 function LoadingState() {
   return (
-    <div style={{ padding: '8px' }}>
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: -600px 0; }
-          100% { background-position: 600px 0; }
-        }
-        .skeleton {
-          background: linear-gradient(90deg, #e2e8f0 25%, #edf2f7 50%, #e2e8f0 75%);
-          background-size: 600px 100%;
-          animation: shimmer 1.4s infinite linear;
-          border-radius: 6px;
-        }
-      `}</style>
+    <div style={{ padding: 'var(--sp-2)' }}>
+
+      {/* Section heading skeleton */}
+      <div style={{ marginBottom: 'var(--sp-5)' }}>
+        <div className="skeleton" style={{ height: '22px', width: '160px', marginBottom: '10px' }} />
+        <div className="skeleton" style={{ height: '14px', width: '240px' }} />
+      </div>
+
+      {/* Verdict banner skeleton */}
+      <div style={{
+        background:   'var(--color-surface)',
+        border:       '1.5px solid var(--color-border)',
+        borderRadius: 'var(--radius-xl)',
+        padding:      'var(--sp-5) var(--sp-6)',
+        marginBottom: 'var(--sp-5)',
+        overflow:     'hidden',
+        position:     'relative',
+      }}>
+        <div className="skeleton" style={{ height: '14px', width: '180px', marginBottom: 'var(--sp-3)' }} />
+        <div className="skeleton" style={{ height: '52px', width: '220px', marginBottom: 'var(--sp-3)', borderRadius: 'var(--radius-lg)' }} />
+        <div className="skeleton" style={{ height: '12px', width: '60%' }} />
+      </div>
 
       {/* Headline numbers skeleton */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', gap: 'var(--sp-3)', marginBottom: 'var(--sp-5)' }}>
         {[1, 2, 3].map((i) => (
           <div key={i} style={{
-            flex: 1,
-            background: '#fff',
-            border: '1px solid var(--color-border)',
+            flex:         1,
+            background:   'var(--color-surface)',
+            border:       '1.5px solid var(--color-border)',
             borderRadius: 'var(--radius-lg)',
-            padding: '20px',
+            padding:      'var(--sp-4) var(--sp-5)',
           }}>
-            <div className="skeleton" style={{ height: '12px', width: '60%', marginBottom: '12px' }} />
-            <div className="skeleton" style={{ height: '32px', width: '80%', marginBottom: '8px' }} />
+            <div className="skeleton" style={{ height: '10px', width: '55%', marginBottom: 'var(--sp-3)' }} />
+            <div className="skeleton" style={{ height: '36px', width: '75%', marginBottom: 'var(--sp-2)', borderRadius: 'var(--radius-md)' }} />
             <div className="skeleton" style={{ height: '10px', width: '90%' }} />
           </div>
         ))}
@@ -97,36 +128,57 @@ function LoadingState() {
 
       {/* Chart skeleton */}
       <div style={{
-        background: '#fff',
-        border: '1px solid var(--color-border)',
+        background:   'var(--color-surface)',
+        border:       '1.5px solid var(--color-border)',
         borderRadius: 'var(--radius-lg)',
-        padding: '24px',
-        marginBottom: '24px',
+        padding:      'var(--sp-5)',
+        marginBottom: 'var(--sp-5)',
       }}>
-        <div className="skeleton" style={{ height: '14px', width: '200px', marginBottom: '20px' }} />
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '24px', height: '160px', padding: '0 20px' }}>
-          <div className="skeleton" style={{ flex: 1, height: '60%', borderRadius: '4px 4px 0 0' }} />
-          <div className="skeleton" style={{ flex: 1, height: '90%', borderRadius: '4px 4px 0 0' }} />
+        <div className="skeleton" style={{ height: '14px', width: '180px', marginBottom: 'var(--sp-5)' }} />
+        <div style={{
+          display:     'flex',
+          alignItems:  'flex-end',
+          gap:         'var(--sp-6)',
+          height:      '160px',
+          padding:     '0 var(--sp-5)',
+        }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--sp-2)' }}>
+            <div className="skeleton" style={{ width: '100%', height: '60%', borderRadius: '6px 6px 0 0' }} />
+            <div className="skeleton" style={{ height: '10px', width: '80%', borderRadius: 'var(--radius-sm)' }} />
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--sp-2)' }}>
+            <div className="skeleton" style={{ width: '100%', height: '90%', borderRadius: '6px 6px 0 0' }} />
+            <div className="skeleton" style={{ height: '10px', width: '60%', borderRadius: 'var(--radius-sm)' }} />
+          </div>
         </div>
       </div>
 
       {/* Table skeleton */}
       <div style={{
-        background: '#fff',
-        border: '1px solid var(--color-border)',
+        background:   'var(--color-surface)',
+        border:       '1.5px solid var(--color-border)',
         borderRadius: 'var(--radius-lg)',
-        padding: '20px',
+        padding:      'var(--sp-5)',
       }}>
-        {[1, 2, 3].map((i) => (
+        <div className="skeleton" style={{ height: '14px', width: '180px', marginBottom: 'var(--sp-5)' }} />
+        {/* Header row */}
+        <div style={{ display: 'flex', gap: 'var(--sp-4)', marginBottom: 'var(--sp-3)', paddingBottom: 'var(--sp-3)', borderBottom: '2px solid var(--color-border)' }}>
+          {[2, 1, 1, 1].map((flex, i) => (
+            <div key={i} className="skeleton" style={{ height: '10px', flex }} />
+          ))}
+        </div>
+        {/* Data rows */}
+        {[1, 2].map((i) => (
           <div key={i} style={{
-            display: 'flex',
-            gap: '16px',
-            marginBottom: '12px',
+            display:      'flex',
+            gap:          'var(--sp-4)',
+            marginBottom: 'var(--sp-3)',
+            paddingBottom: 'var(--sp-3)',
+            borderBottom: '1px solid var(--color-border)',
           }}>
-            <div className="skeleton" style={{ height: '12px', flex: 2 }} />
-            <div className="skeleton" style={{ height: '12px', flex: 1 }} />
-            <div className="skeleton" style={{ height: '12px', flex: 1 }} />
-            <div className="skeleton" style={{ height: '12px', flex: 1 }} />
+            {[2, 1, 1, 1].map((flex, j) => (
+              <div key={j} className="skeleton" style={{ height: '12px', flex }} />
+            ))}
           </div>
         ))}
       </div>
@@ -134,26 +186,49 @@ function LoadingState() {
   );
 }
 
-// ─── Chart icon ───────────────────────────────────────────────────────────────
-function ChartIcon() {
+// ─── Chart illustration ───────────────────────────────────────────────────────
+function ChartIllustration() {
   return (
     <svg
-      width="64"
-      height="64"
-      viewBox="0 0 64 64"
+      width="80"
+      height="80"
+      viewBox="0 0 80 80"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      <rect width="64" height="64" rx="16" fill="#EBF4FF" />
-      {/* Bar chart bars */}
-      <rect x="12" y="36" width="10" height="16" rx="2" fill="#90CDF4" />
-      <rect x="27" y="24" width="10" height="28" rx="2" fill="#63B3ED" />
-      <rect x="42" y="16" width="10" height="36" rx="2" fill="#2B6CB0" />
-      {/* Baseline */}
-      <line x1="10" y1="52" x2="54" y2="52" stroke="#BEE3F8" strokeWidth="2" strokeLinecap="round" />
-      {/* Trend arrow */}
-      <path d="M14 32 L28 20 L42 14" stroke="#2B6CB0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 2" />
+      {/* Background circle */}
+      <circle cx="40" cy="40" r="40" fill="var(--color-brand-surface)" />
+
+      {/* Grid lines */}
+      <line x1="16" y1="56" x2="64" y2="56" stroke="var(--color-border)" strokeWidth="1.5" strokeLinecap="round" />
+      <line x1="16" y1="44" x2="64" y2="44" stroke="var(--color-border)" strokeWidth="1" strokeDasharray="3 3" />
+      <line x1="16" y1="32" x2="64" y2="32" stroke="var(--color-border)" strokeWidth="1" strokeDasharray="3 3" />
+
+      {/* Bar 1 — portfolio (trailing, red) */}
+      <rect x="22" y="40" width="14" height="16" rx="3" fill="#fca5a5" />
+      {/* Bar 2 — VWRL (blue) */}
+      <rect x="44" y="26" width="14" height="30" rx="3" fill="var(--color-vwrl)" opacity="0.5" />
+
+      {/* Upward trending sparkline */}
+      <path
+        d="M18 50 L32 38 L50 30 L62 22"
+        stroke="var(--color-brand)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+        opacity="0.6"
+      />
+
+      {/* Arrow head */}
+      <path
+        d="M58 20 L62 22 L60 26"
+        stroke="var(--color-brand)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

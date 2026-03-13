@@ -33,9 +33,6 @@ function validateHolding(h: HoldingInput): HoldingErrors {
 
   if (h.currentValue < 0)
     errors.currentValue = 'Current value cannot be negative';
-  else if (h.currentValue === 0 && h.amountInvested > 0) {
-    // Allow £0 current value (total loss scenario) but warn via empty-ish treatment
-  }
 
   const VWRL_LISTING_DATE = '2012-01-23';
   if (!h.purchaseDate) {
@@ -43,7 +40,7 @@ function validateHolding(h: HoldingInput): HoldingErrors {
   } else if (h.purchaseDate > TODAY) {
     errors.purchaseDate = 'Date cannot be in the future';
   } else if (h.purchaseDate < VWRL_LISTING_DATE) {
-    errors.purchaseDate = `Date cannot be before ${VWRL_LISTING_DATE} (VWRL listing date)`;
+    errors.purchaseDate = `Must be on or after ${VWRL_LISTING_DATE} (VWRL listing date)`;
   }
 
   return errors;
@@ -59,37 +56,51 @@ function formatGbp(value: number): string {
   return value.toString();
 }
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
+// ─── Field wrapper ────────────────────────────────────────────────────────────
 interface FieldProps {
-  label: string;
-  hint?: string;
-  error?: string;
+  label:    string;
+  hint?:    string;
+  error?:   string;
   children: React.ReactNode;
 }
 
 function Field({ label, hint, error, children }: FieldProps) {
   return (
-    <div style={{ marginBottom: '10px' }}>
+    <div style={{ marginBottom: 'var(--sp-3)' }}>
       <label style={{
-        display: 'block',
-        fontSize: '12px',
-        fontWeight: 600,
-        color: 'var(--color-text-secondary)',
-        marginBottom: '4px',
+        display:       'block',
+        fontSize:      '0.6875rem',
+        fontWeight:    700,
+        color:         'var(--color-text-secondary)',
+        marginBottom:  'var(--sp-1)',
         textTransform: 'uppercase',
-        letterSpacing: '0.04em',
+        letterSpacing: '0.05em',
       }}>
         {label}
       </label>
       {children}
       {hint && !error && (
-        <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '3px' }}>
+        <p style={{
+          fontSize:    '0.6875rem',
+          color:       'var(--color-text-muted)',
+          marginTop:   'var(--sp-1)',
+          lineHeight:  1.4,
+        }}>
           {hint}
         </p>
       )}
       {error && (
-        <p style={{ fontSize: '11px', color: '#e53e3e', marginTop: '3px' }}>
+        <p style={{
+          fontSize:    '0.6875rem',
+          color:       'var(--color-error)',
+          marginTop:   'var(--sp-1)',
+          fontWeight:  500,
+          lineHeight:  1.4,
+          display:     'flex',
+          alignItems:  'center',
+          gap:         '4px',
+        }}>
+          <span aria-hidden="true">●</span>
           {error}
         </p>
       )}
@@ -97,26 +108,43 @@ function Field({ label, hint, error, children }: FieldProps) {
   );
 }
 
+// ─── £ prefixed number input ──────────────────────────────────────────────────
 interface GbpInputProps {
-  value: number;
-  onChange: (v: number) => void;
+  value:       number;
+  onChange:    (v: number) => void;
   placeholder?: string;
-  disabled?: boolean;
-  hasError?: boolean;
+  disabled?:   boolean;
+  hasError?:   boolean;
 }
 
 function GbpInput({ value, onChange, placeholder, disabled, hasError }: GbpInputProps) {
   return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-      <span style={{
-        position: 'absolute',
-        left: '10px',
-        color: disabled ? 'var(--color-text-muted)' : 'var(--color-text-secondary)',
-        fontWeight: 500,
-        fontSize: '14px',
-        pointerEvents: 'none',
-        userSelect: 'none',
-      }}>£</span>
+    <div style={{
+      position: 'relative',
+      display:  'flex',
+    }}>
+      {/* £ prefix badge */}
+      <div style={{
+        position:        'absolute',
+        left:            0,
+        top:             0,
+        bottom:          0,
+        width:           '36px',
+        display:         'flex',
+        alignItems:      'center',
+        justifyContent:  'center',
+        color:           disabled ? 'var(--color-text-muted)' : 'var(--color-text-secondary)',
+        fontWeight:      600,
+        fontSize:        '0.875rem',
+        pointerEvents:   'none',
+        userSelect:      'none',
+        borderRight:     `1px solid ${hasError ? 'var(--color-error-border)' : 'var(--color-border)'}`,
+        background:      disabled ? 'transparent' : 'var(--color-bg)',
+        borderRadius:    'var(--radius-md) 0 0 var(--radius-md)',
+        transition:      'border-color var(--transition-fast)',
+      }}>
+        £
+      </div>
       <input
         type="number"
         min="0"
@@ -126,22 +154,24 @@ function GbpInput({ value, onChange, placeholder, disabled, hasError }: GbpInput
         placeholder={placeholder ?? '0.00'}
         disabled={disabled}
         className={hasError ? 'error' : ''}
-        style={{ paddingLeft: '24px' }}
+        style={{
+          paddingLeft:  '44px',
+          borderRadius: 'var(--radius-md)',
+        }}
       />
     </div>
   );
 }
 
 // ─── HoldingCard ─────────────────────────────────────────────────────────────
-
 interface HoldingCardProps {
-  holding: HoldingInput;
-  index: number;
-  errors: HoldingErrors;
+  holding:   HoldingInput;
+  index:     number;
+  errors:    HoldingErrors;
   showRemove: boolean;
-  disabled: boolean;
-  onChange: (id: string, updates: Partial<HoldingInput>) => void;
-  onRemove: (id: string) => void;
+  disabled:  boolean;
+  onChange:  (id: string, updates: Partial<HoldingInput>) => void;
+  onRemove:  (id: string) => void;
 }
 
 function HoldingCard({
@@ -149,52 +179,64 @@ function HoldingCard({
 }: HoldingCardProps) {
   return (
     <div style={{
-      background: '#f7fafc',
-      border: '1px solid var(--color-border)',
-      borderRadius: 'var(--radius-md)',
-      padding: '14px 16px',
-      marginBottom: '12px',
-      position: 'relative',
+      background:    'var(--color-bg)',
+      border:        '1.5px solid var(--color-border)',
+      borderRadius:  'var(--radius-lg)',
+      padding:       'var(--sp-4)',
+      marginBottom:  'var(--sp-3)',
+      transition:    `border-color var(--transition-fast)`,
     }}>
       {/* Card header */}
       <div style={{
-        display: 'flex',
+        display:        'flex',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '12px',
+        alignItems:     'center',
+        marginBottom:   'var(--sp-3)',
       }}>
         <span style={{
-          fontSize: '12px',
-          fontWeight: 700,
-          color: 'var(--color-brand)',
+          fontSize:      '0.6875rem',
+          fontWeight:    700,
+          color:         'var(--color-brand)',
           textTransform: 'uppercase',
-          letterSpacing: '0.06em',
+          letterSpacing: '0.07em',
         }}>
-          Holding #{index + 1}
+          Holding {index + 1}
         </span>
         {showRemove && (
           <button
             type="button"
             onClick={() => onRemove(holding.id)}
             disabled={disabled}
-            title="Remove holding"
-            style={{
-              background: 'none',
-              border: '1px solid #fed7d7',
-              borderRadius: '50%',
-              width: '24px',
-              height: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#e53e3e',
-              fontSize: '16px',
-              lineHeight: 1,
-              padding: 0,
-              cursor: disabled ? 'not-allowed' : 'pointer',
-              opacity: disabled ? 0.5 : 1,
-            }}
+            title={`Remove holding ${index + 1}`}
             aria-label={`Remove holding ${index + 1}`}
+            style={{
+              background:  'var(--color-surface)',
+              border:      '1.5px solid var(--color-border)',
+              borderRadius: '50%',
+              width:        '24px',
+              height:       '24px',
+              display:      'flex',
+              alignItems:   'center',
+              justifyContent: 'center',
+              color:        'var(--color-text-muted)',
+              fontSize:     '1.1rem',
+              lineHeight:   1,
+              padding:      0,
+              cursor:       disabled ? 'not-allowed' : 'pointer',
+              opacity:      disabled ? 0.5 : 1,
+              transition:   `color var(--transition-fast), border-color var(--transition-fast)`,
+              flexShrink:   0,
+            }}
+            onMouseEnter={(e) => {
+              if (!disabled) {
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-trailing)';
+                (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-trailing-border)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-muted)';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)';
+            }}
           >
             ×
           </button>
@@ -202,7 +244,11 @@ function HoldingCard({
       </div>
 
       {/* Asset name */}
-      <Field label="Asset name" hint='e.g. "Fundsmith Equity T Acc"' error={errors.name}>
+      <Field
+        label="Asset name"
+        hint='e.g. "Fundsmith Equity T Acc" or "Apple (AAPL)"'
+        error={errors.name}
+      >
         <input
           type="text"
           value={holding.name}
@@ -215,34 +261,47 @@ function HoldingCard({
       </Field>
 
       {/* Amount invested */}
-      <Field label="Amount invested" hint="Total cost paid in GBP" error={errors.amountInvested}>
+      <Field
+        label="Amount invested"
+        hint="Total cost paid, including any fees (GBP)"
+        error={errors.amountInvested}
+      >
         <GbpInput
           value={holding.amountInvested}
           onChange={(v) => onChange(holding.id, { amountInvested: v })}
-          placeholder="Total cost paid"
+          placeholder="e.g. 10000"
           disabled={disabled}
           hasError={!!errors.amountInvested}
         />
       </Field>
 
       {/* Current value */}
-      <Field label="Current value" hint="Current market value in GBP" error={errors.currentValue}>
+      <Field
+        label="Current value"
+        hint="Today's market value of this holding (GBP)"
+        error={errors.currentValue}
+      >
         <GbpInput
           value={holding.currentValue}
           onChange={(v) => onChange(holding.id, { currentValue: v })}
-          placeholder="Current market value"
+          placeholder="e.g. 12500"
           disabled={disabled}
           hasError={!!errors.currentValue}
         />
       </Field>
 
       {/* Date purchased */}
-      <Field label="Date purchased" hint="When you first bought this holding" error={errors.purchaseDate}>
+      <Field
+        label="Date purchased"
+        hint="When you first bought this holding (on or after Jan 2012)"
+        error={errors.purchaseDate}
+      >
         <input
           type="date"
           value={holding.purchaseDate}
           onChange={(e) => onChange(holding.id, { purchaseDate: e.target.value })}
           max={TODAY}
+          min="2012-01-23"
           disabled={disabled}
           className={errors.purchaseDate ? 'error' : ''}
         />
@@ -252,25 +311,21 @@ function HoldingCard({
 }
 
 // ─── PortfolioForm ────────────────────────────────────────────────────────────
-
 interface PortfolioFormProps {
-  onCalculate: (holdings: HoldingInput[]) => Promise<void>;
-  isCalculating: boolean;
+  onCalculate:    (holdings: HoldingInput[]) => Promise<void>;
+  isCalculating:  boolean;
 }
 
 export default function PortfolioForm({ onCalculate, isCalculating }: PortfolioFormProps) {
-  const [holdings, setHoldings] = useState<HoldingInput[]>([emptyHolding()]);
+  const [holdings, setHoldings]   = useState<HoldingInput[]>([emptyHolding()]);
   const [submitted, setSubmitted] = useState(false);
 
-  // Compute errors for each holding (only show after first submit attempt)
   const allErrors: HoldingErrors[] = holdings.map(validateHolding);
   const hasAnyError = allErrors.some(hasErrors);
   const isFormValid = !hasAnyError;
 
   const updateHolding = useCallback((id: string, updates: Partial<HoldingInput>) => {
-    setHoldings((prev) =>
-      prev.map((h) => (h.id === id ? { ...h, ...updates } : h))
-    );
+    setHoldings((prev) => prev.map((h) => (h.id === id ? { ...h, ...updates } : h)));
   }, []);
 
   const addHolding = useCallback(() => {
@@ -293,18 +348,24 @@ export default function PortfolioForm({ onCalculate, isCalculating }: PortfolioF
   };
 
   const showErrors = submitted;
+  const ctaDisabled = isCalculating || (submitted && !isFormValid);
 
   return (
     <form onSubmit={handleSubmit} noValidate>
+
       {/* Section heading */}
-      <div style={{ marginBottom: '20px' }}>
-        <h2 style={{ marginBottom: '4px' }}>Your Portfolio</h2>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px' }}>
-          Enter each holding below. All values in GBP (£).
+      <div style={{ marginBottom: 'var(--sp-5)' }}>
+        <h2 style={{ marginBottom: 'var(--sp-1)' }}>Your Portfolio</h2>
+        <p style={{
+          color:    'var(--color-text-secondary)',
+          fontSize: '0.8125rem',
+          lineHeight: 1.5,
+        }}>
+          Enter each holding below. All values in <strong style={{ fontWeight: 600 }}>GBP (£)</strong>.
         </p>
       </div>
 
-      {/* Holdings */}
+      {/* Holdings list */}
       {holdings.map((holding, idx) => (
         <HoldingCard
           key={holding.id}
@@ -325,27 +386,39 @@ export default function PortfolioForm({ onCalculate, isCalculating }: PortfolioF
           onClick={addHolding}
           disabled={isCalculating}
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'none',
-            border: '1px dashed var(--color-border)',
-            borderRadius: 'var(--radius-md)',
-            color: 'var(--color-brand)',
-            fontSize: '13px',
-            fontWeight: 500,
-            padding: '10px 16px',
-            width: '100%',
+            display:        'flex',
+            alignItems:     'center',
+            gap:            'var(--sp-2)',
+            background:     'transparent',
+            border:         '1.5px dashed var(--color-border)',
+            borderRadius:   'var(--radius-lg)',
+            color:          'var(--color-brand)',
+            fontSize:       '0.8125rem',
+            fontWeight:     500,
+            padding:        'var(--sp-3) var(--sp-4)',
+            width:          '100%',
             justifyContent: 'center',
-            cursor: isCalculating ? 'not-allowed' : 'pointer',
-            marginBottom: '16px',
-            opacity: isCalculating ? 0.6 : 1,
-            transition: 'border-color 0.15s, background 0.15s',
+            cursor:         isCalculating ? 'not-allowed' : 'pointer',
+            marginBottom:   'var(--sp-4)',
+            opacity:        isCalculating ? 0.5 : 1,
+            transition:     `border-color var(--transition-fast), background var(--transition-fast)`,
+          }}
+          onMouseEnter={(e) => {
+            if (!isCalculating) {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-brand)';
+              (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-brand-surface)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)';
+            (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
           }}
         >
-          <span style={{ fontSize: '18px', lineHeight: 1 }}>+</span>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 3v10M3 8h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
           Add another holding
-          <span style={{ color: 'var(--color-text-muted)', fontSize: '12px' }}>
+          <span style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', marginLeft: 'var(--sp-1)' }}>
             ({holdings.length}/{MAX_HOLDINGS})
           </span>
         </button>
@@ -353,26 +426,34 @@ export default function PortfolioForm({ onCalculate, isCalculating }: PortfolioF
 
       {holdings.length >= MAX_HOLDINGS && (
         <p style={{
-          fontSize: '12px',
-          color: 'var(--color-text-muted)',
-          textAlign: 'center',
-          marginBottom: '16px',
+          fontSize:     '0.75rem',
+          color:        'var(--color-text-muted)',
+          textAlign:    'center',
+          marginBottom: 'var(--sp-4)',
         }}>
           Maximum {MAX_HOLDINGS} holdings reached.
         </p>
       )}
 
-      {/* Validation summary (only after submit) */}
+      {/* Validation summary (only after first submit) */}
       {showErrors && hasAnyError && (
         <div style={{
-          background: '#fff5f5',
-          border: '1px solid #feb2b2',
-          borderRadius: 'var(--radius-sm)',
-          padding: '10px 14px',
-          marginBottom: '14px',
-          fontSize: '13px',
-          color: '#9b2c2c',
+          background:   'var(--color-error-bg)',
+          border:       '1.5px solid var(--color-error-border)',
+          borderRadius: 'var(--radius-md)',
+          padding:      'var(--sp-3) var(--sp-4)',
+          marginBottom: 'var(--sp-3)',
+          fontSize:     '0.8125rem',
+          color:        'var(--color-trailing)',
+          fontWeight:   500,
+          display:      'flex',
+          alignItems:   'center',
+          gap:          'var(--sp-2)',
         }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <path d="M8 1.5L14.5 13h-13L8 1.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+            <path d="M8 6v3M8 10.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
           Please fix the errors above before calculating.
         </div>
       )}
@@ -380,29 +461,36 @@ export default function PortfolioForm({ onCalculate, isCalculating }: PortfolioF
       {/* Calculate CTA */}
       <button
         type="submit"
-        disabled={isCalculating || (submitted && !isFormValid)}
+        disabled={ctaDisabled}
         style={{
-          width: '100%',
-          padding: '13px',
-          fontSize: '15px',
-          fontWeight: 700,
-          letterSpacing: '0.02em',
-          borderRadius: 'var(--radius-md)',
-          background: isCalculating
-            ? 'var(--color-brand)'
-            : submitted && !isFormValid
-              ? 'var(--color-disabled)'
-              : 'var(--color-brand)',
-          color: submitted && !isFormValid ? 'var(--color-disabled-text)' : '#fff',
-          cursor: isCalculating || (submitted && !isFormValid) ? 'not-allowed' : 'pointer',
-          opacity: isCalculating ? 0.85 : 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-          boxShadow: isCalculating || (submitted && !isFormValid)
-            ? 'none'
-            : '0 2px 8px rgba(43, 108, 176, 0.35)',
+          width:           '100%',
+          padding:         'var(--sp-3) var(--sp-5)',
+          fontSize:        '0.9375rem',
+          fontWeight:      700,
+          letterSpacing:   '0.01em',
+          borderRadius:    'var(--radius-lg)',
+          background:      ctaDisabled
+            ? 'var(--color-disabled)'
+            : 'var(--color-brand)',
+          color:           ctaDisabled ? 'var(--color-disabled-text)' : '#fff',
+          cursor:          ctaDisabled ? 'not-allowed' : 'pointer',
+          opacity:         isCalculating ? 0.9 : 1,
+          display:         'flex',
+          alignItems:      'center',
+          justifyContent:  'center',
+          gap:             'var(--sp-2)',
+          boxShadow:       ctaDisabled ? 'none' : '0 2px 8px rgba(29, 78, 216, 0.3)',
+          transition:      `background var(--transition-fast), box-shadow var(--transition-fast)`,
+          lineHeight:      1,
+          height:          '48px',
+        }}
+        onMouseEnter={(e) => {
+          if (!ctaDisabled)
+            (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-brand-hover)';
+        }}
+        onMouseLeave={(e) => {
+          if (!ctaDisabled)
+            (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-brand)';
         }}
       >
         {isCalculating ? (
@@ -417,21 +505,28 @@ export default function PortfolioForm({ onCalculate, isCalculating }: PortfolioF
   );
 }
 
-// ─── Tiny spinner ─────────────────────────────────────────────────────────────
+// ─── Spinner ─────────────────────────────────────────────────────────────────
 function Spinner() {
   return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      style={{ animation: 'spin 0.75s linear infinite' }}
-    >
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-    </svg>
+    <>
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        style={{ animation: 'spin 0.7s linear infinite', flexShrink: 0 }}
+        aria-hidden="true"
+      >
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+      </svg>
+    </>
   );
 }

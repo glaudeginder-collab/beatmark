@@ -463,8 +463,16 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
         </ResponsiveContainer>
       </div>
 
+      {/* Results-page legal disclaimer — sits between results and holdings */}
+      <Disclaimer variant="results" />
+
+      {/* Data accuracy notice */}
+      <Disclaimer variant="data" />
+
       {/* ── Holdings breakdown ── */}
-      <HoldingsTable holdings={results.holdings} portfolio={results.portfolio} />
+      <div style={{ marginTop: 'var(--sp-5)' }}>
+        <HoldingsTable holdings={results.holdings} portfolio={results.portfolio} />
+      </div>
 
       {/* ── Warnings ── */}
       {results.warnings.length > 0 && (
@@ -485,12 +493,6 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
           ))}
         </div>
       )}
-
-      {/* Results-page legal disclaimer */}
-      <Disclaimer variant="results" />
-
-      {/* Data accuracy notice */}
-      <Disclaimer variant="data" />
     </div>
   );
 }

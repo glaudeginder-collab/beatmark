@@ -5,6 +5,12 @@ import ResultsPanel from './components/ResultsPanel';
 import Disclaimer from './components/Disclaimer';
 import type { HoldingInput, CalculateResponse } from '../../shared/index';
 
+// Plausible helper — safe to call even before script loads
+function plausible(event: string, opts?: Record<string, unknown>) {
+  (window as unknown as { plausible?: (e: string, o?: unknown) => void })
+    .plausible?.(event, opts);
+}
+
 export default function App() {
   const [results, setResults] = useState<CalculateResponse | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
@@ -13,6 +19,7 @@ export default function App() {
   const handleCalculate = async (formData: HoldingInput[]) => {
     setIsCalculating(true);
     setError(null);
+    plausible('calculate');
     try {
       const response = await fetch('/api/calculate', {
         method: 'POST',
@@ -79,14 +86,14 @@ export default function App() {
           </span>
         </div>
 
-        <div style={{
+        <div className="header-divider" style={{
           width: '1px',
           height: '20px',
           background: 'var(--color-border)',
           flexShrink: 0,
         }} />
 
-        <p style={{
+        <p className="header-tagline" style={{
           color: 'var(--color-text-secondary)',
           fontSize: '0.8125rem',
           fontWeight: 400,
@@ -133,32 +140,19 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Main two-panel layout ── */}
-      <main style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      {/* ── Main two-panel layout (stacks on mobile via CSS class) ── */}
+      <main className="app-main-layout">
 
-        {/* Left panel — 40% — white, form */}
-        <div style={{
-          width: '40%',
-          minWidth: '360px',
-          maxWidth: '520px',
-          borderRight: '1px solid var(--color-border)',
-          overflowY: 'auto',
-          background: 'var(--color-surface)',
-          padding: 'var(--sp-7) var(--sp-7) var(--sp-10)',
-        }}>
+        {/* Left panel — 40% on desktop, full-width on mobile */}
+        <div className="app-form-panel">
           <PortfolioForm
             onCalculate={handleCalculate}
             isCalculating={isCalculating}
           />
         </div>
 
-        {/* Right panel — 60% — grey bg, results */}
-        <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          background: 'var(--color-bg)',
-          padding: 'var(--sp-7) var(--sp-8) var(--sp-10)',
-        }}>
+        {/* Right panel — 60% on desktop, below form on mobile */}
+        <div className="app-results-panel">
           {results ? (
             <ResultsPanel results={results} />
           ) : (

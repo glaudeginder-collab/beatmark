@@ -1,8 +1,15 @@
+import { useRef, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import type { CalculateResponse } from '../../../shared/index';
 import Disclaimer from './Disclaimer';
+
+// ─── Plausible helper ─────────────────────────────────────────────────────────
+function plausible(event: string, opts?: Record<string, unknown>) {
+  (window as unknown as { plausible?: (e: string, o?: unknown) => void })
+    .plausible?.(event, opts);
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtGbp(n: number): string {
@@ -288,6 +295,7 @@ function HoldingsTable({ holdings, portfolio }: HoldingsTableProps) {
     fontSize:    '0.8125rem',
     color:       'var(--color-text-primary)',
     lineHeight:  1.4,
+    whiteSpace:  'nowrap',
   };
 
   const tdTotalStyle: React.CSSProperties = {
@@ -310,46 +318,49 @@ function HoldingsTable({ holdings, portfolio }: HoldingsTableProps) {
       <div style={{ padding: 'var(--sp-4) var(--sp-5) var(--sp-3)' }}>
         <h3>Holdings Breakdown</h3>
       </div>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            <th style={thStyle}>Holding</th>
-            <th style={{ ...thStyle, textAlign: 'right' }}>Invested</th>
-            <th style={{ ...thStyle, textAlign: 'right' }}>Current value</th>
-            <th style={{ ...thStyle, textAlign: 'right' }}>Return</th>
-          </tr>
-        </thead>
-        <tbody>
-          {holdings.map((h) => (
-            <tr key={h.id} style={{ transition: 'background var(--transition-fast)' }}>
-              <td style={tdStyle}>{h.name}</td>
-              <td style={{ ...tdStyle, textAlign: 'right' }} className="num">
-                {fmtGbp(h.amountInvested)}
+      {/* Horizontal scroll wrapper for mobile */}
+      <div className="table-scroll-wrapper">
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '480px' }}>
+          <thead>
+            <tr>
+              <th style={thStyle}>Holding</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Invested</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Current value</th>
+              <th style={{ ...thStyle, textAlign: 'right' }}>Return</th>
+            </tr>
+          </thead>
+          <tbody>
+            {holdings.map((h) => (
+              <tr key={h.id} style={{ transition: 'background var(--transition-fast)' }}>
+                <td style={tdStyle}>{h.name}</td>
+                <td style={{ ...tdStyle, textAlign: 'right' }} className="num">
+                  {fmtGbp(h.amountInvested)}
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right' }} className="num">
+                  {fmtGbp(h.currentValue)}
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: returnColor(h.totalReturn) }} className="num">
+                  {fmtPct(h.totalReturn)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td style={tdTotalStyle}>Total</td>
+              <td style={{ ...tdTotalStyle, textAlign: 'right' }} className="num">
+                {fmtGbp(portfolio.totalInvested)}
               </td>
-              <td style={{ ...tdStyle, textAlign: 'right' }} className="num">
-                {fmtGbp(h.currentValue)}
+              <td style={{ ...tdTotalStyle, textAlign: 'right' }} className="num">
+                {fmtGbp(portfolio.totalCurrentValue)}
               </td>
-              <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: returnColor(h.totalReturn) }} className="num">
-                {fmtPct(h.totalReturn)}
+              <td style={{ ...tdTotalStyle, textAlign: 'right', color: returnColor(portfolio.totalReturn) }} className="num">
+                {fmtPct(portfolio.totalReturn)}
               </td>
             </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td style={tdTotalStyle}>Total</td>
-            <td style={{ ...tdTotalStyle, textAlign: 'right' }} className="num">
-              {fmtGbp(portfolio.totalInvested)}
-            </td>
-            <td style={{ ...tdTotalStyle, textAlign: 'right' }} className="num">
-              {fmtGbp(portfolio.totalCurrentValue)}
-            </td>
-            <td style={{ ...tdTotalStyle, textAlign: 'right', color: returnColor(portfolio.totalReturn) }} className="num">
-              {fmtPct(portfolio.totalReturn)}
-            </td>
-          </tr>
-        </tfoot>
-      </table>
+          </tfoot>
+        </table>
+      </div>
     </div>
   );
 }
@@ -361,6 +372,8 @@ interface ResultsPanelProps {
 
 export default function ResultsPanel({ results }: ResultsPanelProps) {
   const { portfolio, benchmark, comparison } = results;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const chartData = [
     { name: 'Your Portfolio', return: portfolio.totalReturn },
@@ -371,15 +384,126 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
     day: 'numeric', month: 'long', year: 'numeric',
   });
 
-  return (
-    <div>
+  // ── PDF export ──────────────────────────────────────────────────────────────
+  const handleDownloadPdf = async () => {
+    if (!containerRef.current || isExporting) return;
+    plausible('export');
+    setIsExporting(true);
+    try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
 
-      {/* Section heading */}
-      <div style={{ marginBottom: 'var(--sp-5)' }}>
-        <h2 style={{ marginBottom: 'var(--sp-1)' }}>Your Results</h2>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>
-          Compared to VWRL · data as of {dataAsOf}
-        </p>
+      const canvas = await html2canvas(containerRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#f7f8fa',
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      const pageWidth  = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth   = pageWidth;
+      const imgHeight  = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let yOffset    = 0;
+
+      // First page
+      pdf.addImage(imgData, 'PNG', 0, yOffset, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Additional pages if content is long
+      while (heightLeft > 0) {
+        yOffset = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, yOffset, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const date = new Date().toISOString().split('T')[0];
+      pdf.save(`beatmark-results-${date}.pdf`);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // ── Share stub (Task 24) ────────────────────────────────────────────────────
+  const handleShare = () => {
+    plausible('share');
+    // TODO Task 24: implement share sheet / copy link
+    if (navigator.share) {
+      navigator.share({
+        title: 'My BeatMark Results',
+        text: `My portfolio returned ${fmtPct(portfolio.totalReturn)} vs VWRL ${fmtPct(benchmark.totalReturn)}`,
+        url: window.location.href,
+      }).catch(() => {/* user cancelled */});
+    } else {
+      navigator.clipboard?.writeText(window.location.href).catch(() => {});
+    }
+  };
+
+  return (
+    <div ref={containerRef}>
+
+      {/* Section heading + action buttons */}
+      <div style={{ marginBottom: 'var(--sp-5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--sp-3)' }}>
+        <div>
+          <h2 style={{ marginBottom: 'var(--sp-1)' }}>Your Results</h2>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>
+            Compared to VWRL · data as of {dataAsOf}
+          </p>
+        </div>
+
+        {/* Action buttons: Export PDF + Share */}
+        <div className="results-actions" style={{ marginBottom: 0 }}>
+          <button
+            className="btn-action"
+            onClick={handleDownloadPdf}
+            disabled={isExporting}
+            title="Download results as PDF"
+            aria-label="Download results as PDF"
+          >
+            {isExporting ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                  style={{ animation: 'spin 0.7s linear infinite', flexShrink: 0 }} aria-hidden="true">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                </svg>
+                Exporting…
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M2 12h12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+                </svg>
+                Download PDF
+              </>
+            )}
+          </button>
+
+          <button
+            className="btn-action"
+            onClick={handleShare}
+            title="Share results"
+            aria-label="Share results"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="12" cy="3" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="12" cy="13" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="4"  cy="8" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M10.5 3.75L5.5 7.25M10.5 12.25L5.5 8.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            Share
+          </button>
+        </div>
       </div>
 
       {/* ── Hero verdict banner ── */}
@@ -391,8 +515,8 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
         vwrlReturn={benchmark.totalReturn}
       />
 
-      {/* ── Three metric cards ── */}
-      <div style={{ display: 'flex', gap: 'var(--sp-3)', marginBottom: 'var(--sp-5)' }}>
+      {/* ── Three metric cards (stack on mobile) ── */}
+      <div className="metric-cards-row">
         <MetricCard
           label="Your Portfolio"
           returnPct={portfolio.totalReturn}
@@ -469,7 +593,7 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
       {/* Data accuracy notice */}
       <Disclaimer variant="data" />
 
-      {/* ── Holdings breakdown ── */}
+      {/* ── Holdings breakdown (horizontally scrollable on mobile) ── */}
       <div style={{ marginTop: 'var(--sp-5)' }}>
         <HoldingsTable holdings={results.holdings} portfolio={results.portfolio} />
       </div>
@@ -493,6 +617,38 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
           ))}
         </div>
       )}
+
+      {/* ── BeatMark branding footer (shows in PDF) ── */}
+      <div style={{
+        marginTop:   'var(--sp-6)',
+        paddingTop:  'var(--sp-4)',
+        borderTop:   '1px solid var(--color-border)',
+        display:     'flex',
+        alignItems:  'center',
+        gap:         'var(--sp-2)',
+        justifyContent: 'space-between',
+        flexWrap:    'wrap',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: '20px', height: '20px', borderRadius: '4px',
+            background: 'var(--color-brand)', flexShrink: 0,
+          }}>
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 13V3M4 7l4-4 4 4" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-secondary)' }}>
+            BeatMark
+          </span>
+        </div>
+        <p style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+          Generated {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+          {' '}· project-shtzw.vercel.app
+        </p>
+      </div>
+
     </div>
   );
 }

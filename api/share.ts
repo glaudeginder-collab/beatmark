@@ -1,33 +1,31 @@
 /**
  * POST /api/share
  *
- * Accepts a BeatMark CalculateResponse payload, stores it in Vercel KV
- * with a 30-day TTL, and returns a short UUID token.
+ * Accepts a BeatMark CalculateResponse payload, stores it in Vercel Blob
+ * as shares/{token}.json, and returns the UUID token.
  *
- * The token can then be used with GET /api/share/{token} to retrieve the
- * payload for rendering a shared results view at /r/{token}.
+ * The token is used with GET /api/share/{token} to retrieve the payload
+ * for rendering a shared results view at /r/{token}.
  *
  * Storage notes:
  *   - No PII stored — only the calculation result payload
- *   - TTL is 30 days (2,592,000 seconds)
- *   - Keys are prefixed with "share:" to avoid collisions with future KV usage
+ *   - No TTL (Vercel Blob does not support TTL). Stored indefinitely for MVP.
+ *     A cleanup job can be added later if needed.
+ *   - Blobs are stored at path shares/{token}.json with public access
  *
- * KV setup (Vercel KV / Upstash Redis):
- *   Requires KV_REST_API_URL and KV_REST_API_TOKEN environment variables.
- *   Create a free Upstash Redis database at https://upstash.com and add the
- *   REST API URL + token to your Vercel project environment variables.
+ * Vercel Blob setup:
+ *   Requires the BLOB_READ_WRITE_TOKEN environment variable, which Vercel
+ *   injects automatically when a Blob store is linked to the project.
  *
  * — Rob, Backend Developer, Niko Labs Ltd
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { kv } from '@vercel/kv';
+import { put } from '@vercel/blob';
 import type { CalculateResponse } from '../shared/index';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
-const KV_PREFIX = 'share:';
 const MAX_PAYLOAD_BYTES = 256 * 1024; // 256 KB sanity cap
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -98,7 +96,7 @@ export default async function handler(
     return;
   }
 
-  // Sanity-check size — protects against oversized payloads filling KV
+  // Sanity-check size — protects against oversized payloads filling Blob storage
   const payloadStr = JSON.stringify(req.body);
   if (payloadStr.length > MAX_PAYLOAD_BYTES) {
     sendError(
@@ -114,13 +112,16 @@ export default async function handler(
   // ── Generate token & store ────────────────────────────────────────────────
 
   const token = crypto.randomUUID();
-  const key = `${KV_PREFIX}${token}`;
+  const pathname = `shares/${token}.json`;
 
   try {
-    await kv.set(key, req.body, { ex: TTL_SECONDS });
+    await put(pathname, payloadStr, {
+      access: 'public',
+      contentType: 'application/json',
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[share] KV set failed for token ${token}: ${message}`);
+    console.error(`[share] Blob put failed for token ${token}: ${message}`);
     sendError(
       res,
       503,
@@ -136,7 +137,5 @@ export default async function handler(
   res.status(200).json({
     token,
     url: `/r/${token}`,
-    expiresIn: TTL_SECONDS,
-    expiresAt: new Date(Date.now() + TTL_SECONDS * 1000).toISOString(),
   });
 }

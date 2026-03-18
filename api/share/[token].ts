@@ -4,20 +4,17 @@
  * Retrieves a previously stored BeatMark result by its share token.
  * Used by the /r/{token} shared results page to fetch the payload.
  *
- * Returns 404 if the token doesn't exist (expired or never existed).
+ * Fetches the blob at shares/{token}.json via list() + head() + fetch.
+ * Returns 404 if the token doesn't exist.
  *
  * — Rob, Backend Developer, Niko Labs Ltd
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { kv } from '@vercel/kv';
+import { head, list } from '@vercel/blob';
 import type { CalculateResponse } from '../../shared/index';
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const KV_PREFIX = 'share:';
-
-// UUID v4 pattern — prevents KV lookups for obviously invalid tokens
+// UUID v4 pattern — prevents Blob lookups for obviously invalid tokens
 const TOKEN_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -70,16 +67,33 @@ export default async function handler(
     return;
   }
 
-  // ── Fetch from KV ─────────────────────────────────────────────────────────
+  // ── Locate blob ───────────────────────────────────────────────────────────
+  // List blobs with the token as prefix to resolve the full blob URL,
+  // then use head() to confirm existence before fetching content.
 
-  const key = `${KV_PREFIX}${token}`;
-  let payload: CalculateResponse | null;
+  const pathname = `shares/${token}.json`;
+  let blobUrl: string;
 
   try {
-    payload = await kv.get<CalculateResponse>(key);
+    const { blobs } = await list({ prefix: pathname, limit: 1 });
+
+    if (blobs.length === 0) {
+      sendError(
+        res,
+        404,
+        'NOT_FOUND',
+        'This shared result does not exist.',
+        `Token: ${token}`
+      );
+      return;
+    }
+
+    // Confirm the blob exists and get its canonical URL
+    const metadata = await head(blobs[0].url);
+    blobUrl = metadata.url;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[share/token] KV get failed for token ${token}: ${message}`);
+    console.error(`[share/token] Blob lookup failed for token ${token}: ${message}`);
     sendError(
       res,
       503,
@@ -90,13 +104,25 @@ export default async function handler(
     return;
   }
 
-  if (!payload) {
+  // ── Fetch blob content ────────────────────────────────────────────────────
+
+  let payload: CalculateResponse;
+
+  try {
+    const blobRes = await fetch(blobUrl);
+    if (!blobRes.ok) {
+      throw new Error(`Blob fetch returned ${blobRes.status}`);
+    }
+    payload = (await blobRes.json()) as CalculateResponse;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[share/token] Blob fetch failed for token ${token}: ${message}`);
     sendError(
       res,
-      404,
-      'NOT_FOUND',
-      'This shared result does not exist or has expired.',
-      `Token: ${token}`
+      503,
+      'STORAGE_UNAVAILABLE',
+      'Could not read the stored result. Please try again.',
+      message
     );
     return;
   }

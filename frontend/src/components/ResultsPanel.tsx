@@ -447,7 +447,8 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const { url } = await res.json();
-      await navigator.clipboard.writeText(url);
+      const fullUrl = `${window.location.origin}${url}`;
+      await navigator.clipboard.writeText(fullUrl);
       plausible('share');
       setShareStatus('copied');
       setTimeout(() => setShareStatus('idle'), 2000);

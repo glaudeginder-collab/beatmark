@@ -374,6 +374,7 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
   const { portfolio, benchmark, comparison } = results;
   const containerRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [shareStatus, setShareStatus] = useState<'idle' | 'sharing' | 'copied' | 'error'>('idle');
 
   const chartData = [
     { name: 'Your Portfolio', return: portfolio.totalReturn },
@@ -434,18 +435,39 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
     }
   };
 
-  // ── Share stub (Task 24) ────────────────────────────────────────────────────
-  const handleShare = () => {
-    plausible('share');
-    // TODO Task 24: implement share sheet / copy link
-    if (navigator.share) {
-      navigator.share({
-        title: 'My BeatMark Results',
-        text: `My portfolio returned ${fmtPct(portfolio.totalReturn)} vs VWRL ${fmtPct(benchmark.totalReturn)}`,
-        url: window.location.href,
-      }).catch(() => {/* user cancelled */});
-    } else {
-      navigator.clipboard?.writeText(window.location.href).catch(() => {});
+  // ── Share ───────────────────────────────────────────────────────────────────
+  const handleShare = async () => {
+    if (shareStatus !== 'idle') return;
+    setShareStatus('sharing');
+    try {
+      const res = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(results),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { url } = await res.json();
+      await navigator.clipboard.writeText(url);
+      plausible('share');
+      setShareStatus('copied');
+      setTimeout(() => setShareStatus('idle'), 2000);
+    } catch {
+      // Fallback: try native share, or show a brief error
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'My BeatMark Results',
+            text: `My portfolio returned ${fmtPct(portfolio.totalReturn)} vs VWRL ${fmtPct(benchmark.totalReturn)}`,
+            url: window.location.href,
+          });
+          setShareStatus('idle');
+        } catch {
+          setShareStatus('idle');
+        }
+      } else {
+        setShareStatus('error');
+        setTimeout(() => setShareStatus('idle'), 2000);
+      }
     }
   };
 
@@ -492,16 +514,43 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
           <button
             className="btn-action"
             onClick={handleShare}
+            disabled={shareStatus !== 'idle'}
             title="Share results"
             aria-label="Share results"
           >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <circle cx="12" cy="3" r="1.5" stroke="currentColor" strokeWidth="1.5" />
-              <circle cx="12" cy="13" r="1.5" stroke="currentColor" strokeWidth="1.5" />
-              <circle cx="4"  cy="8" r="1.5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M10.5 3.75L5.5 7.25M10.5 12.25L5.5 8.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-            Share
+            {shareStatus === 'sharing' ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                  style={{ animation: 'spin 0.7s linear infinite', flexShrink: 0 }} aria-hidden="true">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                </svg>
+                Sharing…
+              </>
+            ) : shareStatus === 'copied' ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M3 8l4 4 6-7" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Copied!
+              </>
+            ) : shareStatus === 'error' ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 3v5M8 11v1" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+                </svg>
+                Couldn't generate link
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="3" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+                  <circle cx="12" cy="13" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+                  <circle cx="4"  cy="8" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M10.5 3.75L5.5 7.25M10.5 12.25L5.5 8.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                Share
+              </>
+            )}
           </button>
         </div>
       </div>

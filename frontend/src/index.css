@@ -230,3 +230,136 @@ button:disabled {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
+
+/* ─── Spinner animation ─────────────────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Layout panels ────────────────────────────────────────────────────────── */
+.app-main-layout {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.app-form-panel {
+  width: 40%;
+  min-width: 360px;
+  max-width: 520px;
+  border-right: 1px solid var(--color-border);
+  overflow-y: auto;
+  background: var(--color-surface);
+  padding: var(--sp-7) var(--sp-7) var(--sp-10);
+}
+
+.app-results-panel {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--color-bg);
+  padding: var(--sp-7) var(--sp-8) var(--sp-10);
+}
+
+/* ─── Metric cards row ─────────────────────────────────────────────────────── */
+.metric-cards-row {
+  display: flex;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+
+/* ─── Holdings table scroll wrapper ───────────────────────────────────────── */
+.table-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Results action bar (PDF + Share buttons) ─────────────────────────────── */
+.results-actions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-5);
+  flex-wrap: wrap;
+}
+
+.btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.btn-action:hover {
+  background: var(--color-bg);
+  border-color: var(--color-border-strong);
+}
+
+.btn-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─── Mobile responsive (< 768px) ─────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .app-main-layout {
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .app-form-panel {
+    width: 100%;
+    min-width: unset;
+    max-width: none;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    overflow-y: visible;
+    padding: var(--sp-5) var(--sp-4) var(--sp-6);
+  }
+
+  .app-results-panel {
+    overflow-y: visible;
+    padding: var(--sp-5) var(--sp-4) var(--sp-8);
+  }
+
+  /* Stack metric cards vertically on mobile */
+  .metric-cards-row {
+    flex-direction: column;
+  }
+
+  /* Tap targets: all inputs & buttons min 44px */
+  input[type="text"],
+  input[type="number"],
+  input[type="date"] {
+    min-height: 44px;
+    padding: var(--sp-2) var(--sp-3);
+    font-size: 1rem; /* prevent iOS auto-zoom (needs 16px+) */
+  }
+
+  button {
+    min-height: 44px;
+  }
+
+  /* Header: hide tagline on very small screens */
+  .header-tagline {
+    display: none;
+  }
+
+  .header-divider {
+    display: none;
+  }
+}
+
+/* Prevent horizontal overflow at all viewport sizes */
+html, body, #root {
+  max-width: 100vw;
+  overflow-x: hidden;
+}

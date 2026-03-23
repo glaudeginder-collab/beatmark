@@ -9,6 +9,24 @@
  * clean, readable layout with a "Run your own comparison" CTA.
  *
  * — Rob, Backend Developer, Niko Labs Ltd
+ *
+ * ─── OG / Social Preview Note ────────────────────────────────────────────────
+ * Dynamic Open Graph tags for /r/{token} URLs are deferred to Sprint 3.
+ *
+ * Because BeatMark is a client-side SPA, crawlers (WhatsApp, LinkedIn, Twitter)
+ * will see the static OG tags from index.html when following shared result links.
+ * This is acceptable for MVP — the static preview image and description will
+ * still appear, just without the specific result data in the preview text.
+ *
+ * Sprint 3 approach (options):
+ *   1. Add a lightweight SSR/edge function (e.g. Vercel Edge) to inject dynamic
+ *      og:title / og:description based on the share token at request time.
+ *   2. Pre-render the /r/:token route with a server-side meta injection endpoint.
+ *   3. Use a service like Microlink or a Puppeteer-based OG screenshotter.
+ *
+ * See: https://github.com/glaudeginder-collab/beatmark/issues (Sprint 3 backlog)
+ * — Jamie, Frontend Dev, Niko Labs Ltd
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import { useState, useEffect } from 'react';

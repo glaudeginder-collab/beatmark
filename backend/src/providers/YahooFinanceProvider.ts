@@ -2,14 +2,16 @@ import yahooFinance from 'yahoo-finance2';
 import type { PricePoint } from '../../../shared/index';
 import type { PriceProvider } from './PriceProvider';
 
-// In yahoo-finance2 v2.3.x, FailedYahooValidationError is thrown when Yahoo's API
+// In yahoo-finance2 v2.x, FailedYahooValidationError is thrown when Yahoo's API
 // returns a response that doesn't match the library's schema (common with UK-listed
 // ETFs like VWRL.L). Crucially, the error object carries the raw `result` — so we
 // can catch it and use whatever data Yahoo actually returned.
+// We extract it defensively — if the library version changes and it's gone, we fall
+// through to the normal error path rather than crashing at module load time.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const { FailedYahooValidationError } = (yahooFinance as any).errors as {
-  FailedYahooValidationError: new (message: string, opts: { result: unknown; errors: unknown }) => Error & { result: unknown };
-};
+const FailedYahooValidationError: (new (message: string, opts: { result: unknown; errors: unknown }) => Error & { result: unknown }) | undefined =
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (yahooFinance as any).errors?.FailedYahooValidationError;
 
 /**
  * Shape of a single row from yahoo-finance2's _chart() quotes array.
@@ -63,11 +65,13 @@ export class YahooFinanceProvider implements PriceProvider {
         interval: '1d',
       });
     } catch (err) {
-      // yahoo-finance2 v2.3.x throws FailedYahooValidationError when Yahoo's response
+      // yahoo-finance2 v2.x throws FailedYahooValidationError when Yahoo's response
       // doesn't match the library's expected schema — this happens intermittently with
       // UK-listed ETFs like VWRL.L. The error carries the raw `result` data, so we
       // can safely use it rather than treating this as a hard failure.
-      if (err instanceof FailedYahooValidationError) {
+      // Guard: FailedYahooValidationError may be undefined if the library version
+      // no longer exports it — in that case we fall through to the normal error path.
+      if (FailedYahooValidationError && err instanceof FailedYahooValidationError) {
         console.warn(
           `[${this.providerName}] Schema validation warning for ${ticker} (using raw result anyway):`,
           (err as Error).message
@@ -110,9 +114,7 @@ export class YahooFinanceProvider implements PriceProvider {
           close: rawClose[i] ?? undefined,
           adjclose: rawAdjclose[i] ?? undefined,
         }))
-        .filter(
-          (r): r is ChartRow => r.adjclose != null || r.close != null
-        );
+        .filter(r => r.adjclose != null || r.close != null) as ChartRow[];
     } else {
       quotes = [];
     }

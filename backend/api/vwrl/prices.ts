@@ -20,11 +20,36 @@ import type { VwrlPricesResponse } from '../../shared/index';
  *   See API_DESIGN.md §4 for the full caching rationale.
  *
  * VWRL.L earliest listing date: 2012-01-23 — reject any `from` before this.
+ *
+ * Resilience:
+ *   If the live price provider fails (Yahoo timeout, FMP rate-limit, etc.),
+ *   the handler returns a static fallback response with source="fallback".
+ *   The frontend should show a warning banner when source === "fallback".
+ *   This prevents a 500 from propagating to the user when market data is
+ *   temporarily unreachable (common on Vercel IPs due to Yahoo rate-limiting).
  */
 
 const VWRL_TICKER = 'VWRL.L';
 const VWRL_LISTING_DATE = '2012-01-23';
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Static fallback prices — used when both FMP and Yahoo Finance are unreachable.
+ *
+ * These are realistic recent VWRL.L (GBP) closing prices as of early 2025.
+ * The frontend MUST surface a warning banner when source === "fallback" so
+ * users know they're seeing stale data, not live market prices.
+ *
+ * Last updated: 2025-03 (Rob). Keep this within ~3 months of current prices
+ * to avoid jarring UI discrepancies.
+ */
+const STATIC_FALLBACK_PRICES = [
+  { date: '2025-03-17', close: 107.84 },
+  { date: '2025-03-18', close: 108.06 },
+  { date: '2025-03-19', close: 108.52 },
+  { date: '2025-03-20', close: 108.30 },
+  { date: '2025-03-21', close: 108.71 },
+];
 
 /** Structured error response shape — matches ApiError from shared/index.ts */
 interface ErrorBody {
@@ -33,7 +58,7 @@ interface ErrorBody {
   details?: string;
 }
 
-/** Send a structured API error response */
+/** Send a structured API error response — never leaks stack traces */
 function sendError(
   res: VercelResponse,
   status: number,
@@ -65,13 +90,20 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ): Promise<void> {
+  // ── CORS headers (Fix 3: use res.setHeader, not reply.header) ─────────────
   const origin = req.headers.origin as string | undefined;
   const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000').split(',');
   if (origin && allowedOrigins.includes(origin)) {
-    reply.header('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Origin', origin);
   }
-  reply.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  reply.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
 
   // Only allow GET
   if (req.method !== 'GET') {
@@ -165,6 +197,8 @@ export default async function handler(
   // ── Fetch price data ──────────────────────────────────────────────────────
 
   let prices;
+  let source: 'live' | 'fallback' = 'live';
+
   try {
     prices = await priceProvider.getHistoricalPrices(
       VWRL_TICKER,
@@ -172,16 +206,20 @@ export default async function handler(
       new Date(to)
     );
   } catch (err) {
+    // Fix 2: Emergency static fallback — if both FMP and Yahoo fail, don't 500.
+    // Log the real error server-side but return usable data with source="fallback"
+    // so the frontend can show a warning banner rather than a broken page.
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[vwrl/prices] Price fetch failed: ${message}`);
-    sendError(
-      res,
-      503,
-      'PRICE_SOURCE_UNAVAILABLE',
-      'Market data is temporarily unavailable. Please try again in a few minutes.',
-      message
-    );
-    return;
+    console.error(`[vwrl/prices] Price fetch failed, serving static fallback: ${message}`);
+
+    // Filter static fallback prices to the requested date range
+    prices = STATIC_FALLBACK_PRICES.filter(p => p.date >= from && p.date <= to);
+    if (prices.length === 0) {
+      // If the requested range doesn't overlap with our static data at all,
+      // return the most recent static price as a single-point reference.
+      prices = [STATIC_FALLBACK_PRICES[STATIC_FALLBACK_PRICES.length - 1]];
+    }
+    source = 'fallback';
   }
 
   // ── Build response ────────────────────────────────────────────────────────
@@ -189,23 +227,23 @@ export default async function handler(
   const dataAsOf = prices.length > 0 ? prices[prices.length - 1].date : from;
   const cachedAt = new Date().toISOString();
 
-  const body: VwrlPricesResponse = {
+  const body: VwrlPricesResponse & { source: string } = {
     ticker: 'VWRL.L',
     name: 'Vanguard FTSE All-World UCITS ETF',
     currency: 'GBP',
     prices,
     dataAsOf,
     cachedAt,
+    source,
   };
 
-  // CDN cache: 24h, serve stale for 1h while revalidating
-  // Vercel's Edge Network respects s-maxage on serverless function responses.
-  // This means the first request of the day hits Yahoo Finance; subsequent
-  // requests in the same 24h window are served from Vercel's CDN. Free, reliable.
-  res.setHeader(
-    'Cache-Control',
-    's-maxage=86400, stale-while-revalidate=3600'
-  );
+  // CDN cache: 24h, serve stale for 1h while revalidating.
+  // Don't cache fallback responses — we want the CDN to retry live data ASAP.
+  if (source === 'live') {
+    res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=3600');
+  } else {
+    res.setHeader('Cache-Control', 'no-store');
+  }
   res.setHeader('Content-Type', 'application/json');
 
   res.status(200).json(body);

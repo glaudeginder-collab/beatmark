@@ -12,6 +12,25 @@ const { FailedYahooValidationError } = (yahooFinance as any).errors as {
 };
 
 /**
+ * Wraps a promise with a hard timeout. If the promise does not resolve within
+ * `ms` milliseconds, the returned promise rejects with a timeout error.
+ *
+ * This is critical for Yahoo Finance calls on Vercel: Yahoo rate-limits requests
+ * from server IPs by silently hanging the connection. Without a timeout, Vercel
+ * kills the function at 10s → 500. With this wrapper, we fail fast at 5s and
+ * can fall through to FMP or the static fallback instead.
+ */
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
+  Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Yahoo Finance timeout after ${ms}ms`)), ms)
+    ),
+  ]);
+
+const YAHOO_TIMEOUT_MS = 5000;
+
+/**
  * Shape of a single row from yahoo-finance2's _chart() quotes array.
  * We define this locally because the package doesn't expose subpath types.
  */
@@ -57,11 +76,17 @@ export class YahooFinanceProvider implements PriceProvider {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let result: any;
     try {
-      result = await (yahooFinance as any)._chart(ticker, {
-        period1: from.toISOString().split('T')[0],
-        period2: to.toISOString().split('T')[0],
-        interval: '1d',
-      });
+      // withTimeout ensures we fail fast if Yahoo hangs the connection (common
+      // on Vercel/cloud IPs due to rate-limiting). Without this, Vercel kills
+      // the function after 10s → 500. With it, we bail at 5s and can fall back.
+      result = await withTimeout(
+        (yahooFinance as any)._chart(ticker, {
+          period1: from.toISOString().split('T')[0],
+          period2: to.toISOString().split('T')[0],
+          interval: '1d',
+        }),
+        YAHOO_TIMEOUT_MS
+      );
     } catch (err) {
       // yahoo-finance2 v2.3.x throws FailedYahooValidationError when Yahoo's response
       // doesn't match the library's expected schema — this happens intermittently with

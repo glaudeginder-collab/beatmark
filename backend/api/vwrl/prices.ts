@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { priceProvider } from '../src/providers/index';
-import type { VwrlPricesResponse } from '../../shared/index';
+import { priceProvider } from '../../src/providers/index';
+import type { VwrlPricesResponse } from '../../../shared/index';
 
 /**
  * GET /api/vwrl/prices

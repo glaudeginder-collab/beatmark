@@ -135,9 +135,7 @@ export class YahooFinanceProvider implements PriceProvider {
           close: rawClose[i] ?? undefined,
           adjclose: rawAdjclose[i] ?? undefined,
         }))
-        .filter(
-          (r): r is ChartRow => r.adjclose != null || r.close != null
-        );
+        .filter(r => r.adjclose != null || r.close != null) as ChartRow[];
     } else {
       quotes = [];
     }

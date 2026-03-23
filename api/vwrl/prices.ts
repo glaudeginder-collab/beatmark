@@ -1,6 +1,23 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { priceProvider } from '../backend/src/providers/index';
-import type { VwrlPricesResponse } from '../shared/index';
+import { priceProvider } from '../../backend/src/providers/index';
+import type { VwrlPricesResponse } from '../../shared/index';
+
+/**
+ * Static fallback — returned when the function crashes before any live data
+ * can be fetched (import error, timeout, cold-start failure, etc.).
+ * Using a 200 so the frontend can still render something rather than showing
+ * a hard error. The `source: 'fallback'` field lets the UI show a warning.
+ */
+const STATIC_FALLBACK = {
+  ticker: 'VWRL.L',
+  name: 'Vanguard FTSE All-World UCITS ETF',
+  currency: 'GBP',
+  prices: [{ date: '2026-03-23', close: 108.50 }],
+  dataAsOf: '2026-03-23',
+  cachedAt: new Date().toISOString(),
+  source: 'fallback',
+  warning: 'Live price data temporarily unavailable. Showing last known value.',
+};
 
 /**
  * GET /api/vwrl/prices
@@ -274,19 +291,17 @@ export default async function handler(
     res.status(200).json(body);
 
   } catch (unexpectedErr) {
-    // Catch-all: something crashed that shouldn't have (bug, bad module, etc.)
-    // Log it loudly and return a 503 — never let Vercel emit a raw 500 with a
-    // stacktrace, and never leave the client hanging with no JSON body.
+    // Catch-all: something crashed that shouldn't have (import error, bug, cold-start
+    // crash, bad module init, etc.). We return the static fallback with a 200 so the
+    // frontend can still render. FUNCTION_INVOCATION_FAILED means we never even got
+    // here — which is why the import path fix above is the real root cause fix.
     const message = unexpectedErr instanceof Error ? unexpectedErr.message : String(unexpectedErr);
-    console.error(`[vwrl/prices] Unexpected handler error: ${message}`, unexpectedErr);
+    console.error(`[vwrl/prices] Unexpected handler error — returning static fallback: ${message}`, unexpectedErr);
 
     // Only write headers if they haven't been sent yet
     if (!res.headersSent) {
       res.setHeader('Cache-Control', 'no-store');
-      res.status(503).json({
-        error: 'Market data is temporarily unavailable. Please try again in a few minutes.',
-        code: 'PRICE_SOURCE_UNAVAILABLE',
-      });
+      res.status(200).json(STATIC_FALLBACK);
     }
   }
 }

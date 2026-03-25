@@ -313,6 +313,8 @@ button:disabled {
   .app-main-layout {
     flex-direction: column;
     overflow: visible;
+    /* allow full-page scroll on mobile */
+    height: auto;
   }
 
   .app-form-panel {
@@ -335,7 +337,7 @@ button:disabled {
     flex-direction: column;
   }
 
-  /* Tap targets: all inputs & buttons min 44px */
+  /* ── Tap targets: all inputs & buttons min 44px ── */
   input[type="text"],
   input[type="number"],
   input[type="date"] {
@@ -348,13 +350,65 @@ button:disabled {
     min-height: 44px;
   }
 
-  /* Header: hide tagline on very small screens */
+  /* Action buttons (PDF + Share) — 44px tap target on mobile */
+  .btn-action {
+    min-height: 44px;
+    padding: var(--sp-2) var(--sp-4);
+  }
+
+  /* Remove-holding button: expand click area to 44×44 */
+  .holding-remove-btn {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: var(--radius-md) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Header: reduce side padding, hide tagline */
+  .app-header {
+    padding: 0 var(--sp-4) !important;
+  }
+
   .header-tagline {
     display: none;
   }
 
   .header-divider {
     display: none;
+  }
+
+  /* Error banner: reduce side padding */
+  .app-error-banner {
+    padding: var(--sp-3) var(--sp-4) !important;
+  }
+
+  /* Footer: reduce side padding */
+  .app-footer {
+    padding: var(--sp-3) var(--sp-4) !important;
+  }
+
+  /* Verdict banner: shrink hero number so it fits 390px */
+  .verdict-hero-number {
+    font-size: 2rem !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  /* Results header: allow action buttons to wrap below title */
+  .results-header-row {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
+  /* Action bar: full-width buttons on mobile */
+  .results-actions {
+    width: 100%;
+  }
+
+  .results-actions .btn-action {
+    flex: 1;
+    justify-content: center;
   }
 }
 

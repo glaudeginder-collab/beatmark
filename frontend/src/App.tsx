@@ -43,7 +43,7 @@ export default function App() {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
       {/* ── Header ── */}
-      <header style={{
+      <header className="app-header" style={{
         background: 'var(--color-surface)',
         borderBottom: '1px solid var(--color-border)',
         padding: '0 var(--sp-8)',
@@ -104,7 +104,7 @@ export default function App() {
 
       {/* ── API error banner ── */}
       {error && (
-        <div style={{
+        <div className="app-error-banner" style={{
           background: 'var(--color-error-bg)',
           borderBottom: '1px solid var(--color-error-border)',
           padding: 'var(--sp-3) var(--sp-8)',
@@ -162,7 +162,7 @@ export default function App() {
       </main>
 
       {/* ── Footer disclaimer ── */}
-      <footer style={{
+      <footer className="app-footer" style={{
         background: 'var(--color-surface)',
         borderTop: '1px solid var(--color-border)',
         padding: 'var(--sp-3) var(--sp-8)',

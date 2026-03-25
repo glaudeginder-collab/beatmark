@@ -139,7 +139,7 @@ function VerdictBanner({
 
         {/* Hero number — the £ difference */}
         {verdict !== 'matching' && (
-          <p style={{
+          <p className="verdict-hero-number" style={{
             fontSize:   '3rem',
             fontWeight: 800,
             color:      c.textColor,
@@ -476,7 +476,7 @@ export default function ResultsPanel({ results }: ResultsPanelProps) {
     <div ref={containerRef}>
 
       {/* Section heading + action buttons */}
-      <div style={{ marginBottom: 'var(--sp-5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--sp-3)' }}>
+      <div className="results-header-row" style={{ marginBottom: 'var(--sp-5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--sp-3)' }}>
         <div>
           <h2 style={{ marginBottom: 'var(--sp-1)' }}>Your Results</h2>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>

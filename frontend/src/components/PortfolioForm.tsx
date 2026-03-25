@@ -209,6 +209,7 @@ function HoldingCard({
             disabled={disabled}
             title={`Remove holding ${index + 1}`}
             aria-label={`Remove holding ${index + 1}`}
+            className="holding-remove-btn"
             style={{
               background:  'var(--color-surface)',
               border:      '1.5px solid var(--color-border)',

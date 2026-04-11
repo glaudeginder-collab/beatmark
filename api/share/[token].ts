@@ -2,16 +2,15 @@
  * GET /api/share/{token}
  *
  * Retrieves a previously stored BeatMark result by its share token.
- * Used by the /r/{token} shared results page to fetch the payload.
+ * Constructs the Vercel Blob URL directly from the store token — avoids
+ * list() which is eventually consistent and caused 404s on fresh blobs.
  *
- * Fetches the blob at shares/{token}.json via list() + head() + fetch.
- * Returns 404 if the token doesn't exist.
+ * Fix: 2026-04-11 — replaced list()+head() with direct URL construction
  *
  * — Rob, Backend Developer, Niko Labs Ltd
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { head, list } from '@vercel/blob';
 import type { CalculateResponse } from '../../shared/index';
 
 // UUID v4 pattern — prevents Blob lookups for obviously invalid tokens
@@ -35,6 +34,18 @@ function sendError(
 ): void {
   const body: ErrorBody = { error, code, ...(details ? { details } : {}) };
   res.status(status).json(body);
+}
+
+/**
+ * Derive the public Vercel Blob store base URL from BLOB_READ_WRITE_TOKEN.
+ * Token format: vercel_blob_rw_<STORE_ID>_<SECRET>
+ * Store URL:    https://<STORE_ID>.public.blob.vercel-storage.com
+ */
+function getBlobStoreBaseUrl(): string {
+  const token = process.env.BLOB_READ_WRITE_TOKEN ?? '';
+  const match = token.match(/vercel_blob_rw_([A-Za-z0-9]+)/);
+  if (!match) throw new Error('Could not parse store ID from BLOB_READ_WRITE_TOKEN');
+  return `https://${match[1]}.public.blob.vercel-storage.com`;
 }
 
 // ─── Handler ─────────────────────────────────────────────────────────────────
@@ -67,69 +78,42 @@ export default async function handler(
     return;
   }
 
-  // ── Locate blob ───────────────────────────────────────────────────────────
-  // List blobs with the token as prefix to resolve the full blob URL,
-  // then use head() to confirm existence before fetching content.
+  // ── Fetch blob directly ───────────────────────────────────────────────────
+  // Construct the URL from the store ID — no list() call, no eventual consistency issues.
 
-  const pathname = `shares/${token}.json`;
   let blobUrl: string;
-
   try {
-    const { blobs } = await list({ prefix: pathname, limit: 1 });
-
-    if (blobs.length === 0) {
-      sendError(
-        res,
-        404,
-        'NOT_FOUND',
-        'This shared result does not exist.',
-        `Token: ${token}`
-      );
-      return;
-    }
-
-    // Confirm the blob exists and get its canonical URL
-    const metadata = await head(blobs[0].url);
-    blobUrl = metadata.url;
+    const storeBase = getBlobStoreBaseUrl();
+    blobUrl = `${storeBase}/shares/${token}.json`;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[share/token] Blob lookup failed for token ${token}: ${message}`);
-    sendError(
-      res,
-      503,
-      'STORAGE_UNAVAILABLE',
-      'Could not retrieve the result. Please try again.',
-      message
-    );
+    console.error(`[share/token] Could not construct blob URL: ${message}`);
+    sendError(res, 503, 'STORAGE_UNAVAILABLE', 'Storage not configured correctly.', message);
     return;
   }
 
-  // ── Fetch blob content ────────────────────────────────────────────────────
-
   let payload: CalculateResponse;
-
   try {
     const blobRes = await fetch(blobUrl);
+
+    if (blobRes.status === 404) {
+      sendError(res, 404, 'NOT_FOUND', 'This shared result does not exist or has expired.');
+      return;
+    }
+
     if (!blobRes.ok) {
       throw new Error(`Blob fetch returned ${blobRes.status}`);
     }
+
     payload = (await blobRes.json()) as CalculateResponse;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[share/token] Blob fetch failed for token ${token}: ${message}`);
-    sendError(
-      res,
-      503,
-      'STORAGE_UNAVAILABLE',
-      'Could not read the stored result. Please try again.',
-      message
-    );
+    sendError(res, 503, 'STORAGE_UNAVAILABLE', 'Could not read the stored result. Please try again.', message);
     return;
   }
 
   // ── Cache headers ─────────────────────────────────────────────────────────
-  // Results are immutable once stored — cache aggressively at the CDN layer
   res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
-
   res.status(200).json(payload);
 }

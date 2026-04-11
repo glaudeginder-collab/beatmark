@@ -111,7 +111,7 @@ export default async function handler(
   // This ensures we always return a structured JSON response, never a raw 500.
   try {
     const origin = req.headers.origin as string | undefined;
-    const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:3000').split(',');
+    const allowedOrigins = (process.env.CORS_ORIGINS || '*').split(',');
     if (origin && allowedOrigins.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
     }

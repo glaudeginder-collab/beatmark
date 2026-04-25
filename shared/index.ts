@@ -91,3 +91,39 @@ export interface ApiError {
   error: string;
   details?: string;
 }
+
+// ─── Screenshot Extraction Types (Sprint 3) ───────────────────────────────────
+
+export interface ExtractedHolding {
+  name: string;
+  value: number | null;     // GBP
+  percentage: number | null; // 0-100
+}
+
+export interface ExtractionConfidence {
+  overall: 'high' | 'medium' | 'low';
+  nullFieldCount: number;
+  totalFieldCount: number;
+  warnings: string[];
+}
+
+export interface ExtractionResult {
+  totalValue: number | null;
+  currency: 'GBP';
+  holdings: ExtractedHolding[];
+  confidence: ExtractionConfidence;
+}
+
+export interface ExtractionErrorResponse {
+  error: string;
+  code:
+    | 'GEMINI_API_ERROR'
+    | 'EXTRACTION_PARSE_ERROR'
+    | 'FILE_TOO_LARGE'
+    | 'UNSUPPORTED_FILE_TYPE'
+    | 'INVALID_REQUEST'
+    | 'METHOD_NOT_ALLOWED'
+    | 'RATE_LIMITED';
+  fallbackToManual: boolean;
+  partialResult?: unknown;
+}

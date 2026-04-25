@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import PortfolioForm from './components/PortfolioForm';
+import ReviewHoldingsScreen from './components/ReviewHoldingsScreen';
 import EmptyState from './components/EmptyState';
 import ResultsPanel from './components/ResultsPanel';
 import Disclaimer from './components/Disclaimer';
-import type { HoldingInput, CalculateResponse } from '../../shared/index';
+import type { HoldingInput, CalculateResponse, ExtractionResult } from '../../shared/index';
 
 // Plausible helper — safe to call even before script loads
 function plausible(event: string, opts?: Record<string, unknown>) {
@@ -15,6 +16,15 @@ export default function App() {
   const [results, setResults] = useState<CalculateResponse | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [extraction, setExtraction] = useState<ExtractionResult | null>(null);
+
+  const handleExtraction = (result: ExtractionResult) => {
+    setExtraction(result);
+  };
+
+  const handleStartOver = () => {
+    setExtraction(null);
+  };
 
   const handleCalculate = async (formData: HoldingInput[]) => {
     setIsCalculating(true);
@@ -32,6 +42,7 @@ export default function App() {
       }
       const data: CalculateResponse = await response.json();
       setResults(data);
+      setExtraction(null); // Clear extraction state after calculate
     } catch (e) {
       setError('Something went wrong fetching VWRL data. Please try again.');
     } finally {
@@ -140,26 +151,39 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Main two-panel layout (stacks on mobile via CSS class) ── */}
-      <main className="app-main-layout">
+      {/* ── Review screen (Task 29) ── */}
+      {extraction ? (
+        <ReviewHoldingsScreen
+          extraction={extraction}
+          onConfirm={handleCalculate}
+          onStartOver={handleStartOver}
+          isCalculating={isCalculating}
+        />
+      ) : (
+        <>
+          {/* ── Main two-panel layout (stacks on mobile via CSS class) ── */}
+          <main className="app-main-layout">
 
-        {/* Left panel — 40% on desktop, full-width on mobile */}
-        <div className="app-form-panel">
-          <PortfolioForm
-            onCalculate={handleCalculate}
-            isCalculating={isCalculating}
-          />
-        </div>
+            {/* Left panel — 40% on desktop, full-width on mobile */}
+            <div className="app-form-panel">
+              <PortfolioForm
+                onCalculate={handleCalculate}
+                onExtraction={handleExtraction}
+                isCalculating={isCalculating}
+              />
+            </div>
 
-        {/* Right panel — 60% on desktop, below form on mobile */}
-        <div className="app-results-panel">
-          {results ? (
-            <ResultsPanel results={results} />
-          ) : (
-            <EmptyState isCalculating={isCalculating} />
-          )}
-        </div>
-      </main>
+            {/* Right panel — 60% on desktop, below form on mobile */}
+            <div className="app-results-panel">
+              {results ? (
+                <ResultsPanel results={results} />
+              ) : (
+                <EmptyState isCalculating={isCalculating} />
+              )}
+            </div>
+          </main>
+        </>
+      )}
 
       {/* ── Footer disclaimer ── */}
       <footer style={{

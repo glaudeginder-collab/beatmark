@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import type { HoldingInput } from '../../../shared/index';
+import ScreenshotUpload from './ScreenshotUpload';
+import type { HoldingInput, ExtractionResult } from '../../../shared/index';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 const MAX_HOLDINGS = 15;
@@ -314,11 +315,13 @@ function HoldingCard({
 interface PortfolioFormProps {
   onCalculate:    (holdings: HoldingInput[]) => Promise<void>;
   isCalculating:  boolean;
+  onExtraction?:  (extraction: ExtractionResult) => void;
 }
 
-export default function PortfolioForm({ onCalculate, isCalculating }: PortfolioFormProps) {
+export default function PortfolioForm({ onCalculate, isCalculating, onExtraction }: PortfolioFormProps) {
   const [holdings, setHoldings]   = useState<HoldingInput[]>([emptyHolding()]);
   const [submitted, setSubmitted] = useState(false);
+  const [showUpload, setShowUpload] = useState(true);
 
   const allErrors: HoldingErrors[] = holdings.map(validateHolding);
   const hasAnyError = allErrors.some(hasErrors);
@@ -338,6 +341,15 @@ export default function PortfolioForm({ onCalculate, isCalculating }: PortfolioF
       if (prev.length <= 1) return prev;
       return prev.filter((h) => h.id !== id);
     });
+  }, []);
+
+  const handleExtraction = useCallback((extraction: ExtractionResult) => {
+    setShowUpload(false);
+    onExtraction?.(extraction);
+  }, [onExtraction]);
+
+  const handleFallbackToManual = useCallback(() => {
+    setShowUpload(false);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -364,6 +376,15 @@ export default function PortfolioForm({ onCalculate, isCalculating }: PortfolioF
           Enter each holding below. All values in <strong style={{ fontWeight: 600 }}>GBP (£)</strong>.
         </p>
       </div>
+
+      {/* Screenshot upload section (Task 27) */}
+      {showUpload && (
+        <ScreenshotUpload
+          onSuccess={handleExtraction}
+          onFallback={handleFallbackToManual}
+          isLoading={isCalculating}
+        />
+      )}
 
       {/* Holdings list */}
       {holdings.map((holding, idx) => (

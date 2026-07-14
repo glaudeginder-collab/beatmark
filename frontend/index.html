@@ -10,7 +10,10 @@
     <!-- Open Graph / Social sharing -->
     <meta property="og:title" content="BeatMark — Is your wealth manager beating the market?" />
     <meta property="og:description" content="Compare your investment portfolio against VWRL. Find out if your wealth manager is actually worth their fees." />
-    <meta property="og:image" content="https://project-shtzw.vercel.app/og-image.svg" />
+    <meta property="og:image" content="https://project-shtzw.vercel.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:url" content="https://project-shtzw.vercel.app" />
     <meta property="og:type" content="website" />
 
@@ -18,12 +21,14 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="BeatMark — Is your wealth manager beating the market?" />
     <meta name="twitter:description" content="Compare your investment portfolio against VWRL. Find out if your wealth manager is actually worth their fees." />
-    <meta name="twitter:image" content="https://project-shtzw.vercel.app/og-image.svg" />
+    <meta name="twitter:image" content="https://project-shtzw.vercel.app/og-image.png" />
     <!--
-      NOTE: og-image.svg is served directly. Most modern crawlers (LinkedIn, WhatsApp, Telegram)
-      handle SVG fine. Twitter/X requires a raster image for best results — convert to PNG in
-      Sprint 3 by adding `sharp` or `@resvg/resvg-js` to the build pipeline.
-      See: public/og-image.svg for source.
+      og-image.png (1200×630) is a rasterised export of og-image.svg.
+      PNG used because Twitter/X does not reliably render SVG og:images.
+      Source SVG is at public/og-image.svg — edit the SVG, then regenerate:
+        node -e "require('sharp')('./frontend/public/og-image.svg').png().toFile('./frontend/public/og-image.png', console.log)"
+      Dynamic OG tags for /r/{token} shared result pages are injected server-side
+      via api/r/[token].ts — the title and description update per result, the image stays static.
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
